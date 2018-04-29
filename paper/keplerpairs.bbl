@@ -1,0 +1,22 @@
+ \newcommand{\noop}[1]{}
+\begin{thebibliography}{}
+\expandafter\ifx\csname natexlab\endcsname\relax\def\natexlab#1{#1}\fi
+\providecommand{\url}[1]{\href{#1}{#1}}
+\providecommand{\dodoi}[1]{doi:~\href{http://doi.org/#1}{\nolinkurl{#1}}}
+\providecommand{\doeprint}[1]{\href{http://ascl.net/#1}{\nolinkurl{http://ascl.net/#1}}}
+\providecommand{\doarXiv}[1]{\href{https://arxiv.org/abs/#1}{\nolinkurl{https://arxiv.org/abs/#1}}}
+
+\bibitem[{{Brewer} \& {Fischer}(2018)}]{brewer18}
+{Brewer}, J.~M., \& {Fischer}, D.~A. 2018, ArXiv e-prints.
+\newblock \doarXiv{1804.00673}
+
+\bibitem[{{Hunter}(2007)}]{matplotlib}
+{Hunter}, J.~D. 2007, Computing in Science and Engineering, 9, 90,
+  \dodoi{10.1109/MCSE.2007.55}
+
+\bibitem[{van~der Walt {et~al.}(2011)van~der Walt, Colbert, \&
+  Varoquaux}]{numpy}
+van~der Walt, S., Colbert, S.~C., \& Varoquaux, G. 2011, Computing in Science
+  Engineering, 13, 22, \dodoi{10.1109/MCSE.2011.37}
+
+\end{thebibliography}
