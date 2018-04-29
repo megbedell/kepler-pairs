@@ -1,0 +1,115 @@
+\documentclass[twocolumn, trackchanges]{aastex62}
+
+\usepackage{graphicx}				% Use pdf, png, jpg, or eps§ with pdflatex; use eps in DVI mode
+								% TeX will automatically convert eps --> pdf in pdflatex	
+\usepackage{xcolor}
+\usepackage[sort&compress]{natbib}
+\usepackage[hang,flushmargin]{footmisc}
+\usepackage[counterclockwise]{rotating}
+\usepackage{xspace}
+
+
+\newcommand{\acronym}[1]{{\small{#1}}}
+\newcommand{\code}[1]{{\texttt{#1}}}
+\newcommand{\todo}[1]{\textcolor{red}{#1}}  % gotta have \usepackage{xcolor} in main doc or this won't work
+
+\newcommand{\teff}{$T_{\rm eff}$}
+\newcommand{\logg}{$\log g$}
+\newcommand{\feh}{$\mathrm{[Fe/H]}$}
+\newcommand{\vt}{$v_t$}
+\newcommand{\mh}{$\mathrm{[M/H]}$}
+\newcommand{\xh}{$\mathrm{[X/H]}$}
+\newcommand{\I}{\textsc{I}}
+\newcommand{\II}{\textsc{II}}
+\newcommand{\vsini}{$v \sin{i}$}
+\newcommand{\gcm}{g cm$^{-3}$}
+\newcommand{\kms}{km s$^{-1}$}
+\newcommand{\masyr}{mas yr$^{-1}$}
+
+% stolen from Ben Pope:
+\newcommand{\kepler}{\emph{Kepler}\xspace}
+\newcommand{\hipparcos}{\emph{Hipparcos}\xspace}
+\newcommand{\gaia}{\emph{Gaia}\xspace}
+\newcommand{\ktwo}{\emph{K2}\xspace}
+
+\shortauthors{Bedell et al.}
+\shorttitle{Co-Moving Pairs in Kepler}
+
+\begin{document}
+\graphicspath{ {figures/} }
+\DeclareGraphicsExtensions{.pdf,.eps,.png}
+
+%@arxiver{}
+
+\title{\textsc{Co-Moving Stars in \kepler from \gaia Data Release 2}}
+
+\author{Megan Bedell}
+\affiliation{Center for Computational Astrophysics, Flatiron Institute, 162 5th Ave., New York, NY 10010, USA}
+
+\author{David W. Hogg}
+\affiliation{Center for Computational Astrophysics, Flatiron Institute, 162 5th Ave., New York, NY 10010, USA}
+\affiliation{Center for Cosmology and Particle Physics, Department of Physics, New York University, 726 Broadway, New York, NY 10003, USA}
+\affiliation{etc.}
+
+\author{Dustin Lang?}
+
+\correspondingauthor{Megan Bedell}
+\email{E-mail: mbedell@flatironinstitute.org}
+
+\keywords{parallaxes, proper motions, stars: binaries: general}
+
+\begin{abstract}
+
+% aims & context
+The 200,000 stars targeted by the \kepler mission for intensive observation of transiting exoplanets are the most extensive and well-studied sample of exoplanet hosts. Despite their importance to exoplanet studies, these stars are generally not as precisely characterized as the nearby, brighter stars targeted by other planet-hunting missions. In particular, while a number of wide, individually resolvable binary systems with planets around one or both stars are known from radial velocity surveys, none have been identified from \kepler due to the lack of kinematic data on these stars. Such systems would be powerful tools for the study of planet formation and evolution, as differences in the compositions of the two stars may correspond to differences in their planetary systems. 
+%Wide binaries composed of stars with known exoplanets are a valuable observational probe of planet formation and evolution, as differences in the compositions of the two stars may correspond to differences in their planetary systems. Currently all known planet-hosting binaries with sufficient angular separation for individually resolved observations come from radial velocity surveys, and the sample is limited in number. 
+% methods
+With the second data release of \gaia, parallax and proper motion measurements have become available for \todo{over XX\%} of the \kepler sample. 
+% results
+Using these data, we identify \todo{X} pairs of co-moving stars where both members are among the main \kepler sample. Of these, \todo{X} pairs contain at least one star with known planets, and \todo{X} have planets around both stars. 
+We analyze the likelihood of these co-moving pairs having been binaries from birth using chemical abundances from \citet{brewer18}. % maybe test for Tc trends or something but we'll leave very detailed analysis on planet-star connections to future work
+Finally, we present improved parallax and distance measures for \todo{X} low-mass stars in \kepler using their kinematically associated partners.
+
+\end{abstract}
+
+\section{Introduction}
+
+importance of binaries with planets
+
+identification of co-moving stars with \gaia kinematics (Oh et al)
+
+\section{Identification of Pairs}
+
+\gaia - \kepler cross-match; generation of pairs
+
+testing criteria
+
+chi-squared metric
+
+results: statistics and a few tables
+
+\section{Validation with Chemical Abundances}
+
+\section{Planets in Co-Moving Pairs}
+
+\section{Better Together}
+
+\section{Discussion \& Conclusion}
+
+There's a lot of cool stuff to do with these pairs!
+
+
+
+
+\acknowledgements
+This work has made use of data from the European Space Agency (ESA) mission Gaia (http://www.cosmos.esa.int/gaia), processed by the Gaia Data Processing and Analysis Consortium (DPAC, http://www.cosmos.esa.int/web/gaia/dpac/consortium). Funding for the DPAC has been provided by national institutions, in particular the institutions participating in the Gaia Multilateral Agreement. This research was started at the NYC Gaia DR2 Workshop at the Center for Computational Astrophysics of the Flatiron Institute in 2018 April.
+% Kepler acknowledgements
+We gratefully acknowledge Brian McFee and Adrian Price-Whelan for useful conversations.
+
+\facilities{ESO:3.6m (HARPS), Magellan:Clay (MIKE)}
+\software{\code{bokeh} \citep{bokeh}, \code{matplotlib} \citep{matplotlib}, \code{numpy} \citep{numpy}, \code{pandas} \citep{pandas}}
+
+\bibliographystyle{apj}
+\bibliography{keplerpairs.bib}%general,myref,inprep}
+
+\end{document}  
