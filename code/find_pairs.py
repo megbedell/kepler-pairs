@@ -135,7 +135,6 @@ def callback(results):
     Save chisquared row
     """
     i, row_of_chisqs = results
-    print("callback: row {0}".format(i))
     with h5py.File('chisqs.hdf5', 'r+') as f:
         f['chisqs'][i] = row_of_chisqs
 
@@ -199,8 +198,10 @@ if __name__ == '__main__':
     with h5py.File('chisqs.hdf5', 'w') as f:
         dset = f.create_dataset('chisqs', data=np.zeros_like(pairs) - 1)
 
-    #tasks = list(zip(range(len(table)), table.iterrows()))
-    tasks = list(zip(range(10000), pairs[:10000,:]))
+    tasks_start = time.time()
+    tasks = list(zip(range(len(table)), table.iterrows()))
+    tasks_end = time.time()
+    print("constructing tasks took {0} s".format(tasks_end - tasks_start))    
 
     pool = MultiPool()
     map_start = time.time()
@@ -209,16 +210,11 @@ if __name__ == '__main__':
     print("mapping took {0} s".format(map_end - map_start))
     pool.close()
 
-    with h5py.File('chisqs.hdf5', 'r+') as f:
-        chisqs = np.copy(f['chisqs'])
 
-    chisqs2 = calc_chisqs_for_table(table, pairs[:10000,:])
-
-
-
-
-    if False: # basic diagnostics
-        print("chisqareds calculated, checking on matches...")
+    if True: # basic diagnostics
+        with h5py.File('chisqs.hdf5', 'r+') as f:
+            chisqs = np.copy(f['chisqs'])
+        
         plt.hist(chisqs[(chisqs > 0.) & (chisqs < 50.)], bins=500)
         plt.xlabel('$\chi^2$', fontsize=16)
         plt.ylabel('# Pairs', fontsize=16)
@@ -238,16 +234,5 @@ if __name__ == '__main__':
         print("saved chisquared = {0:.5f}".format(chisqs[pairs_ind1s[i]][np.where(pairs[pairs_ind1s[i]]
                                                                             == pairs_ind2s[i])[0][0]]))
         plot_xs(i, sigma=3)
-
-    if False: # check for Kepler pairs
-        table = construct_table(gaia_table_file, kepler_table_file=kepler_table_file, minimal=False)
-        ind1_is_kic = np.isfinite(table.iloc[pairs_ind1s]['kepid'])
-        ind2_is_kic = np.isfinite(table.iloc[pairs_ind2s]['kepid'])
-        one_is_kic = np.any(np.vstack([ind1_is_kic, ind2_is_kic]), axis=0)
-        both_are_kic = np.all(np.vstack([ind1_is_kic, ind2_is_kic]), axis=0)
-
-        print("{0} pairs have one KIC member. {1} pairs have both members as KIC targets.".format(one_is_kic,
-                                                                                            both_are_kic))
-
 
     print("total execution took {0} s".format(time.time() - start))
