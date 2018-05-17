@@ -137,6 +137,25 @@ def callback(results):
     i, row_of_chisqs = results
     with h5py.File('chisqs.hdf5', 'r+') as f:
         f['chisqs'][i] = row_of_chisqs
+        
+def main(pool):
+    """
+    Main function for MPIPool
+    see example: https://schwimmbad.readthedocs.io/en/latest/examples/index.html#using-mpipool
+    """
+    # make the output file
+    with h5py.File('chisqs.hdf5', 'w') as f:
+        dset = f.create_dataset('chisqs', data=np.zeros_like(pairs) - 1)
+     
+    # construct tasks list   
+    tasks_start = time.time()
+    tasks = list(zip(range(len(table)), table.iterrows()))
+    tasks_end = time.time()
+    print("constructing tasks took {0} s".format(tasks_end - tasks_start))
+    
+    # run
+    results = pool.map(worker, tasks, callback=callback)
+    pool.close()
 
 def read_match_attr(table, ind1, ind2, attr):
     return table.iloc[ind1][attr], table.iloc[ind2][attr]
@@ -195,21 +214,15 @@ if __name__ == '__main__':
     print("loading pairs array took {0} s".format(time.time() - pairs_start))
 
     print("calculating chisquared...")
-    with h5py.File('chisqs.hdf5', 'w') as f:
-        dset = f.create_dataset('chisqs', data=np.zeros_like(pairs) - 1)
+    pool_start = time.time()
+    pool = MPIPool()
+    if not pool.is_master():
+        pool.wait()
+        sys.exit(0)
 
-    tasks_start = time.time()
-    tasks = list(zip(range(len(table)), table.iterrows()))
-    tasks_end = time.time()
-    print("constructing tasks took {0} s".format(tasks_end - tasks_start))    
-
-    pool = MultiPool()
-    map_start = time.time()
-    results = pool.map(worker, tasks, callback=callback)
-    map_end = time.time()
-    print("mapping took {0} s".format(map_end - map_start))
-    pool.close()
-
+    main(pool)
+    pool_end = time.time()
+    print("pool execution took {0} s".format(pool_end - pool_start))
 
     if True: # basic diagnostics
         with h5py.File('chisqs.hdf5', 'r+') as f:
