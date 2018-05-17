@@ -22,7 +22,7 @@ def construct_table(gaia_table_file, kepler_table_file=None, minimal=True):
         return gaia_src_tbl.to_pandas()
     elif kepler_table_file is None:
         print('must supply kepler_table_file kwarg for non-minimal return')
-    gaia_src_tbl = gaia_src_tbl.to_pandas() 
+    gaia_src_tbl = gaia_src_tbl.to_pandas()
     hdul = fits.open(kepler_table_file)
     kepler_tbl = Table(hdul[1].data)
     gaia_kepler_matches = kepler_tbl['kepid', 'kepler_gaia_ang_dist', 'source_id', 'nconfp', 'nkoi', 'planet?']
@@ -30,19 +30,19 @@ def construct_table(gaia_table_file, kepler_table_file=None, minimal=True):
     gaia_kepler_matches.sort_values(['kepid', 'kepler_gaia_ang_dist'], inplace=True)
     gaia_kepler_matches.drop_duplicates('kepid', inplace=True)
     table = gaia_src_tbl.merge(gaia_kepler_matches, on='source_id', how='left')
-    return table 
-    
+    return table
+
 def read_from_fits(filename):
     hdul = fits.open(filename)
-    return hdul[0].data 
-    
+    return hdul[0].data
+
 def save_as_fits(filename, data):
     print("saving as {0}...".format(filename))
     hdu = fits.PrimaryHDU(data)
     hdul = fits.HDUList([hdu])
     hdul.writeto(filename, overwrite=True)
     hdul.close()
-    
+
 def make_x(star):
     """
     returns a vector of x = [parallax, pmra, pmdec]
@@ -55,11 +55,11 @@ def make_xerr(star):
     returns a vector of xerr = [parallax_error, pmra_error, pmdec_error]
     """
     err_names = ['parallax_error', 'pmra_error', 'pmdec_error']
-    return star.loc[err_names].values.astype('f')  
-    
+    return star.loc[err_names].values.astype('f')
+
 def ppm_check(star1, star2, sigma=5.):
     """
-    Returns True if the differences between parallax, pmra, and pmdec are all below 
+    Returns True if the differences between parallax, pmra, and pmdec are all below
     the sigma threshold.
     """
     x1 = make_x(star1)
@@ -73,7 +73,7 @@ def ppm_check(star1, star2, sigma=5.):
     if np.any(np.abs(x1 - x2)/np.sqrt(xerr1**2 + xerr2**2) >= sigma):
         return False
     return True
-    
+
 def make_cov(star):
     """
     returns covariance matrix C corresponding to x
@@ -96,13 +96,13 @@ def chisq(star1, star2):
     deltax = make_x(star1) - make_x(star2)
     cplusc = make_cov(star1) + make_cov(star2)
     return np.dot(deltax, np.linalg.solve(cplusc, deltax))
-    
+
 def calc_chisq_for_pair(m, primary):
     if ppm_check(primary, m):
         return chisq(primary, m)
     else:
         return -1
-        
+
 def calc_chisqs_for_row(i,row):
     row_of_chisqs = np.zeros_like(row) - 1
     primary = table.iloc[i]
@@ -111,37 +111,37 @@ def calc_chisqs_for_row(i,row):
     if np.sum(row_mask) > 0:
         row_of_chisqs[row_mask] = matches.apply(calc_chisq_for_pair, args=(primary,), axis=1)
     return row_of_chisqs
-        
+
 def calc_chisqs_for_table(table, pairs, save=False, save_every=1e6, save_name='chisqs.fits'):
     chisqs = np.zeros_like(pairs) - 1.
     for i,row in tqdm(enumerate(pairs)):
         chisqs[i] = calc_chisqs_for_row(i,row)
         if save and (i % save_every == 1):
-            save_as_fits(save_name, chisqs)    
+            save_as_fits(save_name, chisqs)
     if save:
-        save_as_fits(save_name, chisqs)        
+        save_as_fits(save_name, chisqs)
     return chisqs
-    
+
 def worker(data):
     """
     Wrapper function for parallelization
     """
     i, row = data
     row_of_chisqs = calc_chisqs_for_row(i, row)
-    return row_of_chisqs
-    
-def callback(row_of_chisqs, data):
+    return i, row_of_chisqs
+
+def callback(results):
     """
     Save chisquared row
     """
-    i = data[0]
+    i, row_of_chisqs = results
     print("callback: row {0}".format(i))
     with h5py.File('chisqs.hdf5', 'r+') as f:
         f['chisqs'][i] = row_of_chisqs
-    
+
 def read_match_attr(table, ind1, ind2, attr):
     return table.iloc[ind1][attr], table.iloc[ind2][attr]
-    
+
 def plot_xs(table, i, sigma=1):
     fs = 12
     star1 = table.iloc[pairs_ind1s[i]]
@@ -166,7 +166,7 @@ def plot_xs(table, i, sigma=1):
     ax2.set_ylim([min([x1[2], x2[2]]) - 5., max([x1[2], x2[2]]) + 5.])
     ax2.set_xlabel('PM RA (mas yr$^{-1}$)', fontsize=fs)
     ax2.set_ylabel('PM Dec (mas yr$^{-1}$)', fontsize=fs)
-    
+
     ax3 = fig.add_subplot(132)
     c1 = np.delete(np.delete(cov1, 1, axis=0), 1, axis=1)
     c2 = np.delete(np.delete(cov2, 1, axis=0), 1, axis=1)
@@ -176,9 +176,9 @@ def plot_xs(table, i, sigma=1):
     ax3.set_ylim([min([x1[2], x2[2]]) - 5., max([x1[2], x2[2]]) + 5.])
     ax3.set_xlabel('Parallax (mas)', fontsize=fs)
     ax3.set_ylabel('PM Dec (mas yr$^{-1}$)', fontsize=fs)
-    
+
     fig.subplots_adjust(wspace = 0.5)
-    fig.text(0.5, 0.95, 'match #{0}'.format(i), horizontalalignment='center', 
+    fig.text(0.5, 0.95, 'match #{0}'.format(i), horizontalalignment='center',
              transform=ax3.transAxes, fontsize=fs+2)
 
 if __name__ == '__main__':
@@ -188,66 +188,66 @@ if __name__ == '__main__':
     kepler_table_file = '../data/kepler_dr2_1arcsec.fits'
     table = construct_table(gaia_table_file, minimal=True) # table is a global variable
     print("loading data table took {0} s".format(time.time() - start))
-    
+
     print("loading pair indices...")
     pairs_start = time.time()
     pairs_file = '../data/matched-pairs-dustin.fits'
     pairs = read_from_fits(pairs_file) # pairs is a global variable
     print("loading pairs array took {0} s".format(time.time() - pairs_start))
-        
-    print("calculating chisquared...")        
+
+    print("calculating chisquared...")
     with h5py.File('chisqs.hdf5', 'w') as f:
         dset = f.create_dataset('chisqs', data=np.zeros_like(pairs) - 1)
-        
+
     #tasks = list(zip(range(len(table)), table.iterrows()))
     tasks = list(zip(range(10000), pairs[:10000,:]))
-    
+
     pool = MultiPool()
     map_start = time.time()
     results = pool.map(worker, tasks, callback=callback)
     map_end = time.time()
     print("mapping took {0} s".format(map_end - map_start))
     pool.close()
-    
+
     with h5py.File('chisqs.hdf5', 'r+') as f:
         chisqs = np.copy(f['chisqs'])
-        
-    chisqs2 = calc_chisqs_for_table(table, pairs[:10000,:])
-    
 
-    
-        
+    chisqs2 = calc_chisqs_for_table(table, pairs[:10000,:])
+
+
+
+
     if False: # basic diagnostics
-        print("chisqareds calculated, checking on matches...")    
+        print("chisqareds calculated, checking on matches...")
         plt.hist(chisqs[(chisqs > 0.) & (chisqs < 50.)], bins=500)
         plt.xlabel('$\chi^2$', fontsize=16)
         plt.ylabel('# Pairs', fontsize=16)
         plt.yscale('log')
         plt.savefig('chisq_keplerpairs.png')
-    
+
         matches_mask = (chisqs > 0) & (chisqs < 5)
         print("{0} matches found with chisq < 5".format(np.sum(matches_mask)))
         len_inds, len_matches = np.shape(pairs)
         pairs_inds = np.array([np.arange(len_inds),]*len_matches).transpose()
         pairs_ind1s = pairs_inds[matches_mask]
         pairs_ind2s = pairs[matches_mask]
-    
+
         i = np.random.randint(0, len(pairs_ind1s))
-        print("match {0}: source_ids {1}".format(i, 
+        print("match {0}: source_ids {1}".format(i,
                     read_match_attr(table, pairs_ind1s[i], pairs_ind2s[i], 'source_id')))
-        print("saved chisquared = {0:.5f}".format(chisqs[pairs_ind1s[i]][np.where(pairs[pairs_ind1s[i]] 
+        print("saved chisquared = {0:.5f}".format(chisqs[pairs_ind1s[i]][np.where(pairs[pairs_ind1s[i]]
                                                                             == pairs_ind2s[i])[0][0]]))
         plot_xs(i, sigma=3)
-    
+
     if False: # check for Kepler pairs
         table = construct_table(gaia_table_file, kepler_table_file=kepler_table_file, minimal=False)
         ind1_is_kic = np.isfinite(table.iloc[pairs_ind1s]['kepid'])
         ind2_is_kic = np.isfinite(table.iloc[pairs_ind2s]['kepid'])
         one_is_kic = np.any(np.vstack([ind1_is_kic, ind2_is_kic]), axis=0)
         both_are_kic = np.all(np.vstack([ind1_is_kic, ind2_is_kic]), axis=0)
-        
-        print("{0} pairs have one KIC member. {1} pairs have both members as KIC targets.".format(one_is_kic, 
+
+        print("{0} pairs have one KIC member. {1} pairs have both members as KIC targets.".format(one_is_kic,
                                                                                             both_are_kic))
-                                                                                                    
+
 
     print("total execution took {0} s".format(time.time() - start))
