@@ -116,8 +116,11 @@ def callback(results):
     Save chisquared row
     """
     i, row_of_chisqs = results
+    if (i % 1e6) == 0:
+        print('{0}th row finished, {1:.2f} min elapsed'.format(i, 
+              (time.time() - map_start)/60.))
     with h5py.File('chisqs.hdf5', 'r+') as f:
-        f['chisqs'][i] = row_of_chisqs
+        f['chisqs'][i,:] = row_of_chisqs
         
 def main(pool):
     """
