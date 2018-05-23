@@ -95,7 +95,7 @@ def calc_chisq_for_pair(m, primary):
         return -1
 
 def calc_chisqs_for_row(i,row):
-    row_of_chisqs = np.zeros_like(row) - 1
+    row_of_chisqs = np.zeros_like(row) - 1.
     primary = table.iloc[i]
     row_mask = (row > -1) & (row > i) # indices in row for matches to compute
     matches = table.iloc[row[row_mask]] # ignore non-matches and duplicates
@@ -129,8 +129,9 @@ def main(pool):
     """
     # make the output file
     with h5py.File('chisqs.hdf5', 'w') as f:
-        dset = f.create_dataset('chisqs', data=np.zeros_like(pairs) - 1)
-     
+        chisqs = np.zeros_like(pairs) - 1.
+        dset = f.create_dataset('chisqs', data=chisqs)
+         
     # construct tasks list   
     tasks_start = time.time()
     tasks = list(enumerate(pairs))
@@ -163,5 +164,14 @@ if __name__ == '__main__':
 
     main(pool)
     pool_end = time.time()
-    print("pool execution took {0} s".format(pool_end - pool_start))
+    print("pool execution took {0} min".format((pool_end - pool_start)/60.))
+    
+    print("calculating individual non-zero PM chisquared...")
+    nonzero_start = time.time()
+    chisqs_nonzero = table.apply(calc_chisq_nonzero, axis=1)
+    with h5py.File('chisqs_nonzero.hdf5', 'w') as f:
+        dset = f.create_dataset('chisqs_nonzero', data=chisqs_nonzero)
+    nonzero_end = time.time()
+    print("calculation took {0} s".format(nonzero_end - nonzero_start))
+    
     print("total execution took {0} s".format(time.time() - start))
