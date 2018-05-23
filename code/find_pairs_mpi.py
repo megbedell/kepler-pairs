@@ -87,6 +87,15 @@ def chisq(star1, star2):
     deltax = make_x(star1) - make_x(star2)
     cplusc = make_cov(star1) + make_cov(star2)
     return np.dot(deltax, np.linalg.solve(cplusc, deltax))
+    
+def calc_chisq_nonzero(star):
+    """
+    Chisquared-like metric to diagnose how different from zero the proper motions
+    Does NOT take parallax into account
+    """
+    x = make_x(star)[1:]
+    cov = make_cov(star)[1:,1:]
+    return np.dot(x, np.linalg.solve(cov, x))
 
 def calc_chisq_for_pair(m, primary):
     if ppm_check(primary, m):
