@@ -2,7 +2,7 @@ import numpy as np
 from astropy.table import Table, unique
 from astropy import units as u
 from astropy.io import fits
-from tqdm import tqdm
+#from tqdm import tqdm
 import pandas as pd
 from schwimmbad import SerialPool, MultiPool, MPIPool
 import h5py
@@ -126,8 +126,7 @@ def callback(results):
     """
     i, row_of_chisqs = results
     if (i % 1e6) == 0:
-        print('{0}th row finished, {1:.2f} min elapsed'.format(i, 
-              (time.time() - map_start)/60.))
+        print('{0}th row finished at time {1}'.format(i, time.time()))
     with h5py.File('chisqs.hdf5', 'r+') as f:
         f['chisqs'][i,:] = row_of_chisqs
         
@@ -136,6 +135,7 @@ def main(pool):
     Main function for MPIPool
     see example: https://schwimmbad.readthedocs.io/en/latest/examples/index.html#using-mpipool
     """
+    print("starting the pool...")
     # make the output file
     with h5py.File('chisqs.hdf5', 'w') as f:
         chisqs = np.zeros_like(pairs) - 1.
@@ -151,6 +151,15 @@ def main(pool):
     results = pool.map(worker, tasks, callback=callback)
     pool.close()
 
+    print("calculating individual non-zero PM chisquared...")
+    nonzero_start = time.time()
+    chisqs_nonzero = table.apply(calc_chisq_nonzero, axis=1)
+    with h5py.File('chisqs_nonzero.hdf5', 'w') as f:
+        dset = f.create_dataset('chisqs_nonzero', data=chisqs_nonzero)
+    nonzero_end = time.time()
+    print("calculation took {0} s".format(nonzero_end - nonzero_start))
+
+
 if __name__ == '__main__':
     print("loading data...")
     start = time.time()
@@ -164,7 +173,6 @@ if __name__ == '__main__':
     pairs = read_from_fits(pairs_file) # pairs is a global variable
     print("loading pairs array took {0} s".format(time.time() - pairs_start))
 
-    print("calculating chisquared...")
     pool_start = time.time()
     pool = MPIPool()
     if not pool.is_master():
@@ -174,13 +182,5 @@ if __name__ == '__main__':
     main(pool)
     pool_end = time.time()
     print("pool execution took {0} min".format((pool_end - pool_start)/60.))
-    
-    print("calculating individual non-zero PM chisquared...")
-    nonzero_start = time.time()
-    chisqs_nonzero = table.apply(calc_chisq_nonzero, axis=1)
-    with h5py.File('chisqs_nonzero.hdf5', 'w') as f:
-        dset = f.create_dataset('chisqs_nonzero', data=chisqs_nonzero)
-    nonzero_end = time.time()
-    print("calculation took {0} s".format(nonzero_end - nonzero_start))
-    
+        
     print("total execution took {0} s".format(time.time() - start))
