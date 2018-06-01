@@ -96,6 +96,15 @@ def chisq(star1, star2):
     deltax = make_x(star1) - make_x(star2)
     cplusc = make_cov(star1) + make_cov(star2)
     return np.dot(deltax, np.linalg.solve(cplusc, deltax))
+    
+def calc_chisq_nonzero(star):
+    """
+    Chisquared-like metric to diagnose how different from zero the proper motions
+    Does NOT take parallax into account
+    """
+    x = make_x(star)[1:]
+    cov = make_cov(star)[1:,1:]
+    return np.dot(x, np.linalg.solve(cov, x))
 
 def calc_chisq_for_pair(m, primary):
     if ppm_check(primary, m):
@@ -104,7 +113,7 @@ def calc_chisq_for_pair(m, primary):
         return -1
 
 def calc_chisqs_for_row(i,row):
-    row_of_chisqs = np.zeros_like(row) - 1
+    row_of_chisqs = np.zeros_like(row) - 1.
     primary = table.iloc[i]
     row_mask = (row > -1) & (row > i) # indices in row for matches to compute
     matches = table.iloc[row[row_mask]] # ignore non-matches and duplicates
@@ -124,7 +133,7 @@ def calc_chisqs_for_table(table, pairs, save=False, save_every=1e6, save_name='c
 
 def worker(data):
     """
-    Wrapper function for parallelization
+    Wrapper function for parallelization of pairs chisquared
     """
     i, row = data
     row_of_chisqs = calc_chisqs_for_row(i, row)
@@ -135,9 +144,11 @@ def callback(results):
     Save chisquared row
     """
     i, row_of_chisqs = results
-    print("callback: row {0}".format(i))
+    if (i % 1e6) == 0:
+        print('{0}th row finished, {1:.2f} min elapsed'.format(i, 
+              (time.time() - map_start)/60.))
     with h5py.File('chisqs.hdf5', 'r+') as f:
-        f['chisqs'][i] = row_of_chisqs
+        f['chisqs'][i,:] = row_of_chisqs
 
 def read_match_attr(table, ind1, ind2, attr):
     return table.iloc[ind1][attr], table.iloc[ind2][attr]
@@ -193,32 +204,39 @@ if __name__ == '__main__':
     pairs_start = time.time()
     pairs_file = '../data/matched-pairs-dustin.fits'
     pairs = read_from_fits(pairs_file) # pairs is a global variable
+    pairs = pairs[:1000] # TEMPORARY FOR TESTING
     print("loading pairs array took {0} s".format(time.time() - pairs_start))
 
-    print("calculating chisquared...")
+    print("calculating pairs chisquared...")
     with h5py.File('chisqs.hdf5', 'w') as f:
-        dset = f.create_dataset('chisqs', data=np.zeros_like(pairs) - 1)
+        chisqs = np.zeros_like(pairs) - 1.
+        dset = f.create_dataset('chisqs', data=chisqs)
 
-    #tasks = list(zip(range(len(table)), table.iterrows()))
-    tasks = list(zip(range(10000), pairs[:10000,:]))
+    tasks_start = time.time()
+    tasks = list(enumerate(pairs))
+    tasks_end = time.time()
+    print("constructing tasks took {0} s".format(tasks_end - tasks_start))    
 
     pool = MultiPool()
     map_start = time.time()
     results = pool.map(worker, tasks, callback=callback)
     map_end = time.time()
-    print("mapping took {0} s".format(map_end - map_start))
+    print("mapping took {0} hr".format((map_end - map_start)/3600.))
     pool.close()
-
-    with h5py.File('chisqs.hdf5', 'r+') as f:
-        chisqs = np.copy(f['chisqs'])
-
-    chisqs2 = calc_chisqs_for_table(table, pairs[:10000,:])
-
-
-
+    
+    print("calculating individual non-zero PM chisquared...")
+    nonzero_start = time.time()
+    chisqs_nonzero = table.apply(calc_chisq_nonzero, axis=1)
+    with h5py.File('chisqs_nonzero.hdf5', 'w') as f:
+        dset = f.create_dataset('chisqs_nonzero', data=chisqs_nonzero)
+    nonzero_end = time.time()
+    print("calculation took {0} s".format(nonzero_end - nonzero_start))  
+    
 
     if False: # basic diagnostics
-        print("chisqareds calculated, checking on matches...")
+        with h5py.File('chisqs.hdf5', 'r+') as f:
+            chisqs = np.copy(f['chisqs'])
+        
         plt.hist(chisqs[(chisqs > 0.) & (chisqs < 50.)], bins=500)
         plt.xlabel('$\chi^2$', fontsize=16)
         plt.ylabel('# Pairs', fontsize=16)
@@ -238,16 +256,5 @@ if __name__ == '__main__':
         print("saved chisquared = {0:.5f}".format(chisqs[pairs_ind1s[i]][np.where(pairs[pairs_ind1s[i]]
                                                                             == pairs_ind2s[i])[0][0]]))
         plot_xs(i, sigma=3)
-
-    if False: # check for Kepler pairs
-        table = construct_table(gaia_table_file, kepler_table_file=kepler_table_file, minimal=False)
-        ind1_is_kic = np.isfinite(table.iloc[pairs_ind1s]['kepid'])
-        ind2_is_kic = np.isfinite(table.iloc[pairs_ind2s]['kepid'])
-        one_is_kic = np.any(np.vstack([ind1_is_kic, ind2_is_kic]), axis=0)
-        both_are_kic = np.all(np.vstack([ind1_is_kic, ind2_is_kic]), axis=0)
-
-        print("{0} pairs have one KIC member. {1} pairs have both members as KIC targets.".format(one_is_kic,
-                                                                                            both_are_kic))
-
 
     print("total execution took {0} s".format(time.time() - start))
