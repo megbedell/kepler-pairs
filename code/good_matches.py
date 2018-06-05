@@ -9,12 +9,7 @@ import pandas as pd
 import h5py
 
 if __name__ == '__main__':
-    print("loading up everything...")
-    gaia_table_file = '../data/gaia-kepler-dustin.fits'
-    hdul = fits.open(gaia_table_file)
-    gaia_src_tbl = Table(hdul[1].data)
-    gaia_src_tbl = gaia_src_tbl.to_pandas()
-    
+    print("loading up the pairs...")
     pairs_file = '../data/matched-pairs-dustin.fits'
     hdul = fits.open(pairs_file)
     pairs = hdul[0].data
@@ -44,6 +39,14 @@ if __name__ == '__main__':
         f.create_dataset('pairs_ind1s', data=pairs_ind1s)
         f.create_dataset('pairs_ind2s', data=pairs_ind2s)
         f.create_dataset('chisqs', data=chisqs)
+     
+    '''   
+    print("loading up Gaia sources...")
+    gaia_table_file = '../data/gaia-kepler-dustin.fits'
+    hdul = fits.open(gaia_table_file)
+    gaia_src_tbl = Table(hdul[1].data)
+    gaia_src_tbl = gaia_src_tbl.to_pandas()
+    '''
         
     
         
