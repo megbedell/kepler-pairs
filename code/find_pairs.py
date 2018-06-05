@@ -7,7 +7,7 @@ from tqdm import tqdm
 import pandas as pd
 from schwimmbad import SerialPool, MultiPool, MPIPool
 import h5py
-from plot_tools import error_ellipse
+#from plot_tools import error_ellipse
 import time
 
 min_columns = ['source_id', 'ra', 'dec', 'parallax', 'pmra', 'pmdec', 'parallax_error',
