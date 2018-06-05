@@ -204,7 +204,7 @@ if __name__ == '__main__':
     pairs_start = time.time()
     pairs_file = '../data/matched-pairs-dustin.fits'
     pairs = read_from_fits(pairs_file) # pairs is a global variable
-    pairs = pairs[:1000] # TEMPORARY FOR TESTING
+    #pairs = pairs[:1000] # TEMPORARY FOR TESTING
     print("loading pairs array took {0} s".format(time.time() - pairs_start))
 
     print("calculating pairs chisquared...")
@@ -217,7 +217,7 @@ if __name__ == '__main__':
     tasks_end = time.time()
     print("constructing tasks took {0} s".format(tasks_end - tasks_start))    
 
-    pool = MultiPool()
+    pool = MultiPool(processes=16)
     map_start = time.time()
     results = pool.map(worker, tasks, callback=callback)
     map_end = time.time()
