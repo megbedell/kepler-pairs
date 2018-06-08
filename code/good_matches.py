@@ -4,13 +4,71 @@ Trim the output for find_pairs.py down and generate a table of only the best mat
 import numpy as np
 from astropy.table import Table, unique
 from astropy.io import fits
-#from tqdm import tqdm
 import pandas as pd
+from schwimmbad import SerialPool, MultiPool, MPIPool
 import h5py
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from find_pairs_mpi import make_x, make_cov, calc_chisq_nonzero
+
+def worker(data):
+    """
+    Wrapper function for parallelization
+    """
+    j,(i1,i2) = data
+    chisq_nonzero1 = calc_chisq_nonzero(gaia_src_tbl.iloc[i1])
+    chisq_nonzero2 = calc_chisq_nonzero(gaia_src_tbl.iloc[i2])
+    if (chisq_nonzero1 > chisq_nonzero_limit) and (chisq_nonzero2 > chisq_nonzero_limit):
+        return j, True
+    else:
+        return j, False
+
+def callback(results):
+    j, b = results
+    if (j%1e6) == 0:
+        print("{0}th pair calculated".format(j))
+    if b:
+        with h5py.File(filename, 'r+') as f:
+            f['mask'][j] = b
+        
+def main(pool):
+    """
+    Main function for MPIPool
+    see example: https://schwimmbad.readthedocs.io/en/latest/examples/index.html#using-mpipool
+    """
+    print("starting the pool...")
+    
+    # make the output file
+    with h5py.File(filename, 'w') as f:
+        f.create_dataset('mask', data=np.zeros(len(pairs_ind1s), dtype=bool))
+
+    tasks = list(enumerate(zip(pairs_ind1s, pairs_ind2s)))
+    print("tasks constructed")
+    
+    # run
+    results = pool.map(worker, tasks, callback=callback)
+    pool.close()
+    
+    # apply mask
+    with h5py.File(filename, 'r+') as f:
+        mask = np.copy(f['mask'])
+        
+    print("{0} pairs meet these criteria. saving outputs...".format(np.sum(mask)))
+
+    pairs_ind1s = pairs_ind1s[mask]
+    pairs_ind2s = pairs_ind2s[mask]
+    chisqs = chisqs[mask]
+    with h5py.File('good_pairs.fits', 'w') as f:
+        f.create_dataset('pairs_ind1s', data=pairs_ind1s)
+        f.create_dataset('pairs_ind2s', data=pairs_ind2s)
+        f.create_dataset('chisqs', data=chisqs)
+
+    inds = np.unique(np.append(pairs_ind1s, pairs_ind2s))
+    gaia_to_save = Table(gaia_src_table.iloc[inds])
+    gaia_to_save.write('good_gaia_sources.fits', format='fits', overwrite=True)
+
+
 
 if __name__ == '__main__':
     if False:
@@ -58,31 +116,13 @@ if __name__ == '__main__':
     
     chisq_nonzero_limit = 25.
     print("dropping objects with chisq_nonzero < {0}...".format(chisq_nonzero_limit))
-
-    keep_pairs = []
-    for j,(i1,i2) in enumerate(zip(pairs_ind1s, pairs_ind2s)):
-        if (j % 100000) == 0:
-            print("{0}/{1} pairs checked; {2} good pairs found so far.".format(j,
-                                        len(pairs_ind1s),len(keep_pairs)))
-        chisq_nonzero1 = calc_chisq_nonzero(gaia_src_tbl.iloc[i1])
-        chisq_nonzero2 = calc_chisq_nonzero(gaia_src_tbl.iloc[i2])
-        if (chisq_nonzero1 > chisq_nonzero_limit) and (chisq_nonzero2 > chisq_nonzero_limit):
-            keep_pairs.append(j)
-
-    print("{0} pairs meet these criteria. saving outputs...".format(len(keep_pairs)))
-
-    pairs_ind1s = pairs_ind1s[keep_pairs]
-    pairs_ind2s = pairs_ind2s[keep_pairs]
-    chisqs = chisqs[keep_pairs]
-    with h5py.File('good_pairs.fits', 'w') as f:
-        f.create_dataset('pairs_ind1s', data=pairs_ind1s)
-        f.create_dataset('pairs_ind2s', data=pairs_ind2s)
-        f.create_dataset('chisqs', data=chisqs)
-
-    inds = np.unique(np.append(pairs_ind1s, pairs_ind2s))
-    gaia_to_save = Table(gaia_src_table.iloc[inds])
-    gaia_to_save.write('good_gaia_sources.fits', format='fits', overwrite=True)
-        
     
-        
+    filename = 'matches_chisqlt5_nzlt{0}mask.hdf5'.format(chisq_nonzero_limit)
     
+    
+    pool = MPIPool()
+    if not pool.is_master():
+        pool.wait()
+        sys.exit(0)
+
+    main(pool)        
