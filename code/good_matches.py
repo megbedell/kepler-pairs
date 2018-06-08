@@ -39,6 +39,11 @@ def main(pool):
     """
     print("starting the pool...")
     
+    with h5py.File('matches_chisqlt5.fits', 'r') as f:
+        pairs_ind1s = np.copy(f['pairs_ind1s'])
+        pairs_ind2s = np.copy(f['pairs_ind2s'])
+        chisqs = np.copy(f['chisqs'])
+    
     # make the output file
     with h5py.File(filename, 'w') as f:
         f.create_dataset('mask', data=np.zeros(len(pairs_ind1s), dtype=bool))
@@ -102,11 +107,7 @@ if __name__ == '__main__':
             f.create_dataset('pairs_ind1s', data=pairs_ind1s)
             f.create_dataset('pairs_ind2s', data=pairs_ind2s)
             f.create_dataset('chisqs', data=chisqs)
-    else:
-        with h5py.File('matches_chisqlt5.fits', 'r') as f:
-            pairs_ind1s = np.copy(f['pairs_ind1s'])
-            pairs_ind2s = np.copy(f['pairs_ind2s'])
-            chisqs = np.copy(f['chisqs'])
+
 
     print("loading up Gaia sources...")
     gaia_table_file = '../data/gaia-kepler-dustin.fits'
@@ -118,8 +119,7 @@ if __name__ == '__main__':
     print("dropping objects with chisq_nonzero < {0}...".format(chisq_nonzero_limit))
     
     filename = 'matches_chisqlt5_nzlt{0}mask.hdf5'.format(chisq_nonzero_limit)
-    
-    
+        
     pool = MPIPool()
     if not pool.is_master():
         pool.wait()
