@@ -2,7 +2,6 @@ import numpy as np
 from astropy.table import Table, unique
 from astropy import units as u
 from astropy.io import fits
-#from tqdm import tqdm
 import pandas as pd
 from schwimmbad import SerialPool, MultiPool, MPIPool
 import h5py
@@ -10,7 +9,8 @@ import time
 
 min_columns = ['source_id', 'ra', 'dec', 'parallax', 'pmra', 'pmdec', 'parallax_error',
                 'pmra_error', 'pmdec_error', 'parallax_pmra_corr', 'parallax_pmdec_corr',
-                'pmra_pmdec_corr']
+                'pmra_pmdec_corr', 'astrometric_chi2_al', 'astrometric_n_good_obs_al',
+                'bp_rp', 'phot_bp_rp_excess_factor', 'phot_g_mean_mag']
 
 def construct_table(gaia_table_file, kepler_table_file=None, minimal=True):
     hdul = fits.open(gaia_table_file)
@@ -33,6 +33,30 @@ def construct_table(gaia_table_file, kepler_table_file=None, minimal=True):
 def read_from_fits(filename):
     hdul = fits.open(filename)
     return hdul[0].data
+    
+def star_is_good(star):
+    """
+    determine whether star meets the following requirements:
+     - successful bp_rp measurement
+     - low excess noise (as defined in Gaia Collaboration (2018) H-R diagram paper)
+     - uncontaminated (as determined by Bp-Rp excess)
+    returns boolean
+    """
+    color_check = np.isfinite(star.loc['bp_rp'])
+    if not color_check:
+        return False
+    chi2 = star.loc['astrometric_chi2_al']
+    nu_prime = star.loc['astrometric_n_good_obs_al']
+    mg = star.loc['phot_g_mean_mag']
+    plx_noise_check = np.sqrt(chi2/(nu_prime - 5.)) < 1.2*max([1., np.exp(-0.2*(mg - 19.5))])   
+    if not plx_noise_check:
+        return False
+    color = star.loc['bp_rp']
+    color_excess = star.loc['phot_bp_rp_excess_factor']
+    color_noise_check =  (color_excess > 1. + 0.015*color**2) & (color_excess < 1.3 + 0.06*color**2)
+    if not color_noise_check:
+        return False
+    return True
 
 def make_x(star):
     """
@@ -87,18 +111,9 @@ def chisq(star1, star2):
     deltax = make_x(star1) - make_x(star2)
     cplusc = make_cov(star1) + make_cov(star2)
     return np.dot(deltax, np.linalg.solve(cplusc, deltax))
-    
-def calc_chisq_nonzero(star):
-    """
-    Chisquared-like metric to diagnose how different from zero the proper motions
-    Does NOT take parallax into account
-    """
-    x = make_x(star)[1:]
-    cov = make_cov(star)[1:,1:]
-    return np.dot(x, np.linalg.solve(cov, x))
 
 def calc_chisq_for_pair(m, primary):
-    if ppm_check(primary, m):
+    if star_is_good(m) & ppm_check(primary, m):
         return chisq(primary, m)
     else:
         return -1
@@ -106,6 +121,8 @@ def calc_chisq_for_pair(m, primary):
 def calc_chisqs_for_row(i,row):
     row_of_chisqs = np.zeros_like(row) - 1.
     primary = table.iloc[i]
+    if not star_is_good(primary):
+        return row_of_chisqs
     row_mask = (row > -1) & (row > i) # indices in row for matches to compute
     matches = table.iloc[row[row_mask]] # ignore non-matches and duplicates
     if np.sum(row_mask) > 0:
@@ -150,14 +167,6 @@ def main(pool):
     # run
     results = pool.map(worker, tasks, callback=callback)
     pool.close()
-
-    print("calculating individual non-zero PM chisquared...")
-    nonzero_start = time.time()
-    chisqs_nonzero = table.apply(calc_chisq_nonzero, axis=1)
-    with h5py.File('chisqs_nonzero.hdf5', 'w') as f:
-        dset = f.create_dataset('chisqs_nonzero', data=chisqs_nonzero)
-    nonzero_end = time.time()
-    print("calculation took {0} s".format(nonzero_end - nonzero_start))
 
 
 if __name__ == '__main__':

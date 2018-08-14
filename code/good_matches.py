@@ -10,8 +10,17 @@ import h5py
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
-from find_pairs_mpi import make_x, make_cov, calc_chisq_nonzero
+from find_pairs_mpi import make_x, make_cov
 import sys
+
+def calc_chisq_nonzero(star):
+    """
+    Chisquared-like metric to diagnose how different from zero the proper motions
+    Does NOT take parallax into account
+    """
+    x = make_x(star)[1:]
+    cov = make_cov(star)[1:,1:]
+    return np.dot(x, np.linalg.solve(cov, x))
 
 def worker(data):
     """
