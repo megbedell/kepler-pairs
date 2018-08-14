@@ -1,0 +1,7 @@
+*.hdf5
+*.fit
+*.fits
+*.png
+*.pdf
+*.out
+*~

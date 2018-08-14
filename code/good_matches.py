@@ -11,6 +11,7 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from find_pairs_mpi import make_x, make_cov, calc_chisq_nonzero
+import sys
 
 def worker(data):
     """
@@ -39,7 +40,7 @@ def main(pool):
     """
     print("starting the pool...")
     
-    with h5py.File('matches_chisqlt5.fits', 'r') as f:
+    with h5py.File('matches_chisqlt5.hdf5', 'r') as f:
         pairs_ind1s = np.copy(f['pairs_ind1s'])
         pairs_ind2s = np.copy(f['pairs_ind2s'])
         chisqs = np.copy(f['chisqs'])
@@ -64,14 +65,20 @@ def main(pool):
     pairs_ind1s = pairs_ind1s[mask]
     pairs_ind2s = pairs_ind2s[mask]
     chisqs = chisqs[mask]
-    with h5py.File('good_pairs.fits', 'w') as f:
+    with h5py.File('good_pairs.hdf5', 'w') as f:
         f.create_dataset('pairs_ind1s', data=pairs_ind1s)
         f.create_dataset('pairs_ind2s', data=pairs_ind2s)
         f.create_dataset('chisqs', data=chisqs)
 
     inds = np.unique(np.append(pairs_ind1s, pairs_ind2s))
-    gaia_to_save = Table(gaia_src_table.iloc[inds])
-    gaia_to_save.write('good_gaia_sources.fits', format='fits', overwrite=True)
+    
+    gaia_table_file = '../data/gaia-kepler-dustin.fits' # idk why this needs to be reloaded??
+    hdul = fits.open(gaia_table_file)
+    gaia_src_tbl = Table(hdul[1].data)
+    gaia_src_tbl = gaia_src_tbl.to_pandas()
+    
+    gaia_to_save = gaia_src_tbl.iloc[inds]
+    gaia_to_save.to_pickle('../code/good_gaia_sources.pkl')
 
 
 
@@ -103,7 +110,7 @@ if __name__ == '__main__':
         pairs_ind1s = pairs_inds[matches_mask]
         pairs_ind2s = pairs[matches_mask]
         chisqs = chisqs[matches_mask]
-        with h5py.File('matches_chisqlt{0}.fits'.format(int(chisq_limit)), 'w') as f:
+        with h5py.File('matches_chisqlt{0}.hdf5'.format(int(chisq_limit)), 'w') as f:
             f.create_dataset('pairs_ind1s', data=pairs_ind1s)
             f.create_dataset('pairs_ind2s', data=pairs_ind2s)
             f.create_dataset('chisqs', data=chisqs)
@@ -118,7 +125,7 @@ if __name__ == '__main__':
     chisq_nonzero_limit = 25.
     print("dropping objects with chisq_nonzero < {0}...".format(chisq_nonzero_limit))
     
-    filename = 'matches_chisqlt5_nzlt{0}mask.hdf5'.format(chisq_nonzero_limit)
+    filename = 'matches_chisqlt5_nzlt{0}mask.hdf5'.format(int(chisq_nonzero_limit))
         
     pool = MPIPool()
     if not pool.is_master():
